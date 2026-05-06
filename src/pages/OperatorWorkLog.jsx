@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { ClipboardList, Check } from 'lucide-react';
+import axios from 'axios';
 
 export default function OperatorWorkLog() {
   const { user, assignments, masterData, setMasterData, addAuditLog } = useAppContext();
@@ -17,10 +18,9 @@ export default function OperatorWorkLog() {
 
   const finalOutput = Math.max(0, formData.qty - formData.frontRejection - formData.rearRejection);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const newEntry = {
-      id: Date.now(),
       date: selectedTask.date,
       product: selectedTask.product,
       operator: user.name,
@@ -32,29 +32,36 @@ export default function OperatorWorkLog() {
       finalOutput
     };
 
-    setMasterData([...masterData, newEntry]);
-    
-    // Add audit log for CREATE
-    addAuditLog(
-      'CREATE_WORK_LOG', 
-      selectedTask.product, 
-      selectedTask.shift, 
-      selectedTask.timeSlot, 
-      null, // No old data
-      {
-        productionQty: Number(formData.qty),
-        frontRejection: Number(formData.frontRejection),
-        rearRejection: Number(formData.rearRejection),
-        finalOutput
-      }
-    );
+    try {
+      const config = { headers: { Authorization: `Bearer ${user?.token}` } };
+      const res = await axios.post('/api/worklogs', newEntry, config);
+      setMasterData([...masterData, res.data]);
+      
+      // Add audit log for CREATE (we can optionally also POST this to an audit endpoint, 
+      // but if the backend already creates an audit log on its own we don't need to. 
+      // Assuming we need to for now).
+      await axios.post('/api/audit', {
+        action: 'CREATE_WORK_LOG', 
+        product: selectedTask.product, 
+        shift: selectedTask.shift, 
+        timeSlot: selectedTask.timeSlot, 
+        newData: {
+          productionQty: Number(formData.qty),
+          frontRejection: Number(formData.frontRejection),
+          rearRejection: Number(formData.rearRejection),
+          finalOutput
+        }
+      }, config).catch(() => {}); // ignore audit errors
 
-    setSuccessMsg('Work log submitted successfully!');
-    setTimeout(() => {
-      setSuccessMsg('');
-      setSelectedTask(null);
-      setFormData({ qty: 0, frontRejection: 0, rearRejection: 0 });
-    }, 2000);
+      setSuccessMsg('Work log submitted successfully!');
+      setTimeout(() => {
+        setSuccessMsg('');
+        setSelectedTask(null);
+        setFormData({ qty: 0, frontRejection: 0, rearRejection: 0 });
+      }, 2000);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error saving worklog');
+    }
   };
 
   return (

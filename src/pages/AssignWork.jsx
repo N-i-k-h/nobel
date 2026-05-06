@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Plus, ArrowRight, ArrowLeft, CheckCircle2, X } from 'lucide-react';
 import { format } from 'date-fns';
+import axios from 'axios';
 
 export default function AssignWork() {
-  const { products, users, assignments, setAssignments } = useAppContext();
+  const { products, users, assignments, setAssignments, user } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [step, setStep] = useState(1);
   
@@ -37,28 +38,35 @@ export default function AssignWork() {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
     const newAssignments = [];
-    
-    // Generate individual cards for each combination
     formData.processes.forEach(process => {
       formData.shifts.forEach(shift => {
         formData.timeSlots[shift].forEach(timeSlot => {
           newAssignments.push({
             ...formData,
-            process, // Save single process per assignment
+            process,
             shift,
-            timeSlot,
-            id: Date.now() + Math.random()
+            timeSlot
           });
         });
       });
     });
 
-    setAssignments([...assignments, ...newAssignments]);
-    setIsModalOpen(false);
+    try {
+      const config = { headers: { Authorization: `Bearer ${user?.token}` } };
+      // Process in sequence to avoid overwhelming the server, or we can send them all at once if the backend supports bulk.
+      // But standard controller uses standard create.
+      for (const assignment of newAssignments) {
+        const res = await axios.post('/api/assignments', assignment, config);
+        setAssignments(prev => [...prev, res.data]);
+      }
+      setIsModalOpen(false);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error saving assignment');
+    }
   };
 
   const nextStep = () => {

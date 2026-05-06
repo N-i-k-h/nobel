@@ -40,18 +40,38 @@ export function AppProvider({ children }) {
   const [bags, setBags] = useState(initialBags);
   const [auditLogs, setAuditLogs] = useState(initialAuditLogs);
 
-  // Fetch initial data from backend
+  // Fetch all initial data from backend when user is logged in
   useEffect(() => {
     const fetchData = async () => {
+      if (!user?.token) return;
+      const config = { headers: { Authorization: `Bearer ${user.token}` } };
       try {
-        const usersRes = await axios.get('/api/auth/users');
+        const [
+          usersRes, productsRes, assignmentsRes, 
+          worklogsRes, cardsRes, bagsRes, auditRes
+        ] = await Promise.all([
+          axios.get('/api/auth/users', config).catch(() => ({ data: [] })),
+          axios.get('/api/products', config).catch(() => ({ data: [] })),
+          axios.get('/api/assignments', config).catch(() => ({ data: [] })),
+          axios.get('/api/worklogs', config).catch(() => ({ data: [] })),
+          axios.get('/api/cards', config).catch(() => ({ data: [] })),
+          axios.get('/api/bags', config).catch(() => ({ data: [] })),
+          axios.get('/api/audit', config).catch(() => ({ data: [] }))
+        ]);
+
         setUsers(usersRes.data);
+        setProducts(productsRes.data);
+        setAssignments(assignmentsRes.data);
+        setMasterData(worklogsRes.data);
+        setCards(cardsRes.data);
+        setBags(bagsRes.data);
+        setAuditLogs(auditRes.data);
       } catch (err) {
         console.error("Failed to fetch data:", err);
       }
     };
     fetchData();
-  }, []);
+  }, [user?.token]);
 
   // Helper to add audit log
   const addAuditLog = (action, product, shift, timeSlot, oldData, newData) => {

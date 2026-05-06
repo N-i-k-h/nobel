@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Plus, Trash2, X, ArrowUp, ArrowDown, Settings2, GripVertical } from 'lucide-react';
+import axios from 'axios';
 
 export default function Products() {
-  const { products, setProducts } = useAppContext();
+  const { products, setProducts, user } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewingProduct, setViewingProduct] = useState(null);
   
@@ -48,15 +49,27 @@ export default function Products() {
     }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setProducts([...products, { ...formData, id: Date.now() }]);
-    handleCloseModal();
+    try {
+      const config = { headers: { Authorization: `Bearer ${user?.token}` } };
+      const res = await axios.post('/api/products', formData, config);
+      setProducts([...products, res.data]);
+      handleCloseModal();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error saving product');
+    }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if(window.confirm('Are you sure you want to delete this product?')) {
-      setProducts(products.filter(p => p.id !== id));
+      try {
+        const config = { headers: { Authorization: `Bearer ${user?.token}` } };
+        await axios.delete(`/api/products/${id}`, config);
+        setProducts(products.filter(p => p._id !== id && p.id !== id));
+      } catch (error) {
+        alert(error.response?.data?.message || 'Error deleting product');
+      }
     }
   };
 
@@ -84,7 +97,7 @@ export default function Products() {
                 <button onClick={() => setViewingProduct(product)} className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center text-gray-300 hover:text-white hover:bg-gray-700">
                   <Settings2 className="w-4 h-4" />
                 </button>
-                <button onClick={() => handleDelete(product.id)} className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-500/20">
+                <button onClick={() => handleDelete(product._id || product.id)} className="w-8 h-8 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-500/20">
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>

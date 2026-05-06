@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Plus, X, ShoppingBag, Package } from 'lucide-react';
 import { format } from 'date-fns';
+import axios from 'axios';
 
 export default function Bags() {
-  const { bags, setBags, cards } = useAppContext();
+  const { bags, setBags, cards, user } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewingBag, setViewingBag] = useState(null);
 
@@ -25,10 +26,16 @@ export default function Bags() {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setBags([...bags, { ...formData, id: Date.now() }]);
-    setIsModalOpen(false);
+    try {
+      const config = { headers: { Authorization: `Bearer ${user?.token}` } };
+      const res = await axios.post('/api/bags', formData, config);
+      setBags([...bags, res.data]);
+      setIsModalOpen(false);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error saving bag');
+    }
   };
 
   return (
