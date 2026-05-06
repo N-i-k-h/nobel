@@ -24,6 +24,20 @@ app.use('/api/cards', require('./routes/cardRoutes'));
 app.use('/api/bags', require('./routes/bagRoutes'));
 app.use('/api/reports', require('./routes/reportRoutes'));
 
+const path = require('path');
+
+// --- Serve React Frontend ---
+// This allows the backend to host the frontend directly!
+app.use(express.static(path.join(__dirname, '../dist')));
+
+// Any request that doesn't match an API route gets sent to React
+app.get('*', (req, res, next) => {
+  if (req.url.startsWith('/api')) {
+    return next();
+  }
+  res.sendFile(path.resolve(__dirname, '../dist/index.html'));
+});
+
 // Error Middleware
 app.use((err, req, res, next) => {
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;
