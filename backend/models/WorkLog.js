@@ -2,13 +2,13 @@ const mongoose = require('mongoose');
 
 const workLogSchema = new mongoose.Schema(
   {
-    assignment: { type: mongoose.Schema.Types.ObjectId, ref: 'Assignment', required: true },
-    operator: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    product: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
+    assignment: { type: String },
+    operator: { type: String, required: true },
+    product: { type: String, required: true },
     date: { type: String, required: true },
-    shift: { type: String, enum: ['A', 'B'], required: true },
+    shift: { type: String, required: true },
     timeSlot: { type: String, required: true },
-    productionQty: { type: Number, required: true, default: 0 },
+    qty: { type: Number, required: true, default: 0 },
     frontRejection: { type: Number, default: 0 },
     rearRejection: { type: Number, default: 0 },
     finalOutput: { type: Number, required: true, default: 0 },
