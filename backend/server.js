@@ -31,7 +31,7 @@ const path = require('path');
 app.use(express.static(path.join(__dirname, '../dist')));
 
 // Any request that doesn't match an API route gets sent to React
-app.get('*', (req, res, next) => {
+app.use((req, res, next) => {
   if (req.url.startsWith('/api')) {
     return next();
   }
