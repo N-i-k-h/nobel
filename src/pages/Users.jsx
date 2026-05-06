@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Plus, Edit2, Trash2, X } from 'lucide-react';
+import axios from 'axios';
 
 export default function Users() {
-  const { users, setUsers } = useAppContext();
+  const { users, setUsers, user } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   
@@ -27,19 +28,31 @@ export default function Users() {
     setEditingUser(null);
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editingUser) {
-      setUsers(users.map(u => u.id === editingUser.id ? { ...formData, id: u.id } : u));
-    } else {
-      setUsers([...users, { ...formData, id: Date.now() }]);
+    try {
+      const config = { headers: { Authorization: `Bearer ${user?.token}` } };
+      if (editingUser) {
+        const res = await axios.put(`/api/auth/users/${editingUser._id || editingUser.id}`, formData, config);
+        setUsers(users.map(u => (u._id === editingUser._id || u.id === editingUser.id) ? res.data : u));
+      } else {
+        const res = await axios.post('/api/auth/register', formData, config);
+        setUsers([...users, res.data]);
+      }
+      handleCloseModal();
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error saving user');
     }
-    handleCloseModal();
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if(window.confirm('Are you sure you want to delete this user?')) {
-      setUsers(users.filter(u => u.id !== id));
+      try {
+        await axios.delete(`/api/auth/users/${id}`);
+        setUsers(users.filter(u => u._id !== id && u.id !== id));
+      } catch (error) {
+        alert('Error deleting user');
+      }
     }
   };
 
@@ -67,21 +80,21 @@ export default function Users() {
               </tr>
             </thead>
             <tbody>
-              {users.map((user) => (
-                <tr key={user.id} className="border-b border-gray-800/50 hover:bg-gray-800/20 transition-colors">
-                  <td className="py-4 px-6 text-white font-medium">{user.name}</td>
-                  <td className="py-4 px-6 text-gray-400">{user.email}</td>
+              {users.map((u) => (
+                <tr key={u._id || u.id} className="border-b border-gray-800/50 hover:bg-gray-800/20 transition-colors">
+                  <td className="py-4 px-6 text-white font-medium">{u.name}</td>
+                  <td className="py-4 px-6 text-gray-400">{u.email}</td>
                   <td className="py-4 px-6">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${user.role === 'admin' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
-                      {user.role}
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium capitalize ${u.role === 'admin' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20' : 'bg-green-500/10 text-green-400 border border-green-500/20'}`}>
+                      {u.role}
                     </span>
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex items-center justify-end gap-3">
-                      <button onClick={() => handleOpenModal(user)} className="text-gray-400 hover:text-white transition-colors">
+                      <button onClick={() => handleOpenModal(u)} className="text-gray-400 hover:text-white transition-colors">
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => handleDelete(user.id)} className="text-gray-400 hover:text-red-400 transition-colors">
+                      <button onClick={() => handleDelete(u._id || u.id)} className="text-gray-400 hover:text-red-400 transition-colors">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>

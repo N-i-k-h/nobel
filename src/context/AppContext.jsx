@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import axios from 'axios';
 
 const AppContext = createContext();
 
@@ -38,6 +39,19 @@ export function AppProvider({ children }) {
   const [cards, setCards] = useState(initialCards);
   const [bags, setBags] = useState(initialBags);
   const [auditLogs, setAuditLogs] = useState(initialAuditLogs);
+
+  // Fetch initial data from backend
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const usersRes = await axios.get('/api/auth/users');
+        setUsers(usersRes.data);
+      } catch (err) {
+        console.error("Failed to fetch data:", err);
+      }
+    };
+    fetchData();
+  }, []);
 
   // Helper to add audit log
   const addAuditLog = (action, product, shift, timeSlot, oldData, newData) => {
