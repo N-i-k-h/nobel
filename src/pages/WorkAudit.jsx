@@ -260,7 +260,7 @@ export default function WorkAudit() {
                       <div className="space-y-4">
                         <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                           <span className="text-sm text-gray-400">Production Qty</span>
-                          <span className="font-mono text-white">{selectedLog.oldData.productionQty}</span>
+                          <span className="font-mono text-white">{selectedLog.oldData.qty ?? selectedLog.oldData.productionQty}</span>
                         </div>
                         <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                           <span className="text-sm text-gray-400">Front Rejection</span>
@@ -291,9 +291,9 @@ export default function WorkAudit() {
                       <div className="flex justify-between items-center border-b border-gray-800 pb-2">
                         <span className="text-sm text-gray-400">Production Qty</span>
                         {selectedLog.action === 'EDIT_WORK_LOG' && selectedLog.oldData ? (
-                          renderDiff(selectedLog.oldData.productionQty, selectedLog.newData.productionQty)
+                          renderDiff(selectedLog.oldData.qty ?? selectedLog.oldData.productionQty, selectedLog.newData.qty ?? selectedLog.newData.productionQty)
                         ) : (
-                          <span className="font-mono text-green-400">{selectedLog.newData.productionQty}</span>
+                          <span className="font-mono text-green-400">{selectedLog.newData.qty ?? selectedLog.newData.productionQty}</span>
                         )}
                       </div>
                       <div className="flex justify-between items-center border-b border-gray-800 pb-2">

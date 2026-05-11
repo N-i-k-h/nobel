@@ -14,7 +14,18 @@ export default function OperatorWorkLog() {
     rearRejection: 0
   });
 
-  const myAssignments = assignments.filter(a => a.operator === user?.name);
+  const myAssignments = assignments.filter(a => {
+    if (a.operator !== user?.name) return false;
+    // Hide assignments that already have a logged work entry in masterData
+    const isCompleted = masterData.some(log => 
+      log.date === a.date && 
+      log.shift === a.shift && 
+      log.timeSlot === a.timeSlot && 
+      log.product === a.product && 
+      log.operator === a.operator
+    );
+    return !isCompleted;
+  });
 
   const finalOutput = Math.max(0, formData.qty - formData.frontRejection - formData.rearRejection);
 
@@ -46,7 +57,7 @@ export default function OperatorWorkLog() {
         shift: selectedTask.shift, 
         timeSlot: selectedTask.timeSlot, 
         newData: {
-          productionQty: Number(formData.qty),
+          qty: Number(formData.qty),
           frontRejection: Number(formData.frontRejection),
           rearRejection: Number(formData.rearRejection),
           finalOutput

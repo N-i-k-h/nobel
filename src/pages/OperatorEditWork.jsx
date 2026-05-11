@@ -64,13 +64,13 @@ export default function OperatorEditWork() {
       loadedEntry.shift, 
       loadedEntry.timeSlot, 
       {
-        productionQty: loadedEntry.qty,
+        qty: loadedEntry.qty,
         frontRejection: loadedEntry.frontRejection,
         rearRejection: loadedEntry.rearRejection,
         finalOutput: loadedEntry.finalOutput
       },
       {
-        productionQty: Number(formData.qty),
+        qty: Number(formData.qty),
         frontRejection: Number(formData.frontRejection),
         rearRejection: Number(formData.rearRejection),
         finalOutput
