@@ -4,18 +4,19 @@ import { Plus, X, Printer, Download, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { jsPDF } from 'jspdf';
 import html2canvas from 'html2canvas';
+import axios from 'axios';
 
 export default function CardDetails() {
-  const { cards, setCards, masterData, products } = useAppContext();
+  const { cards, setCards, masterData, products, assignments, user } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewingCard, setViewingCard] = useState(null);
   const cardRef = useRef(null);
 
+  const [selectedDates, setSelectedDates] = useState([format(new Date(), 'yyyy-MM-dd')]);
   const [formData, setFormData] = useState({
     applyDate: '',
     cardNumber: Math.floor(1000 + Math.random() * 9000).toString(),
-    partNo: '',
-    date: format(new Date(), 'dd/MM/yy'),
+    date: '',
     productId: ''
   });
 
@@ -23,29 +24,36 @@ export default function CardDetails() {
     setFormData({
       applyDate: '',
       cardNumber: Math.floor(1000 + Math.random() * 9000).toString(),
-      partNo: '',
-      date: format(new Date(), 'dd/MM/yy'),
+      date: '',
       productId: ''
     });
+    setSelectedDates([format(new Date(), 'yyyy-MM-dd')]);
     setIsModalOpen(true);
   };
 
   const handleProductChange = (productId) => {
-    const product = products.find(p => p.id === parseInt(productId));
-    if (product) {
-      setFormData({
-        ...formData,
-        productId,
-        partNo: product.id === 1 ? '921/292' : (product.id === 2 ? 'E-88/V8' : 'SA-001')
-      });
-    }
+    setFormData({
+      ...formData,
+      productId
+    });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const product = products.find(p => p.id === parseInt(formData.productId));
-    setCards([...cards, { ...formData, productName: product?.name, id: Date.now() }]);
-    setIsModalOpen(false);
+    try {
+      const config = { headers: { Authorization: `Bearer ${user?.token}` } };
+      const product = products.find(p => (p._id || p.id).toString() === formData.productId.toString());
+      const body = {
+        date: selectedDates.join(', '),
+        productName: product?.name,
+        processes: []
+      };
+      const res = await axios.post('/api/cards', body, config);
+      setCards([...cards, { ...res.data, id: res.data._id || res.data.id }]);
+      setIsModalOpen(false);
+    } catch (error) {
+      alert(error.response?.data?.message || 'Error generating route card');
+    }
   };
 
   const handleDownloadPDF = async () => {
@@ -76,7 +84,7 @@ export default function CardDetails() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {cards.map((card) => (
           <div 
-            key={card.id} 
+            key={card.id || card._id} 
             className="bg-[#facc15] border-2 border-black/20 rounded-lg p-6 hover:shadow-2xl transition-all duration-300 group cursor-pointer relative overflow-hidden" 
             onClick={() => setViewingCard(card)}
           >
@@ -89,7 +97,6 @@ export default function CardDetails() {
             <div className="flex justify-between items-start mb-4">
               <div>
                 <h3 className="text-lg font-bold text-black mb-1">{card.productName || 'General Product'}</h3>
-                <p className="text-xs text-black/70 font-bold uppercase tracking-tighter">P/N: {card.partNo}</p>
               </div>
               <div className="text-right">
                 <span className="text-red-600 font-mono font-black text-xl leading-none opacity-80">{card.cardNumber}</span>
@@ -97,7 +104,20 @@ export default function CardDetails() {
             </div>
             
             <div className="flex justify-between items-center text-[10px] font-bold text-black/50 border-t border-black/10 pt-4">
-              <span>Date: {card.date}</span>
+              <span>Date: {(() => {
+                const formatDateForDisplay = (dateStr) => {
+                  if (!dateStr) return '';
+                  return dateStr.split(',').map(d => {
+                    const trimmed = d.trim();
+                    if (trimmed.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                      const [y, m, day_val] = trimmed.split('-');
+                      return `${day_val}/${m}/${y.substring(2)}`;
+                    }
+                    return trimmed;
+                  }).join(', ');
+                };
+                return formatDateForDisplay(card.date);
+              })()}</span>
               <span className="uppercase">Sup. Sign Required</span>
             </div>
           </div>
@@ -126,24 +146,49 @@ export default function CardDetails() {
                 >
                   <option value="">-- Select Product --</option>
                   {products.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                    <option key={p._id || p.id} value={p._id || p.id}>{p.name}</option>
                   ))}
                 </select>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Card Number</label>
-                  <input required type="text" value={formData.cardNumber} onChange={e => setFormData({...formData, cardNumber: e.target.value})} className="w-full bg-background border border-gray-800 rounded-xl px-4 py-2.5 text-white focus:border-accent outline-none" />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-400 mb-1">Date (DD/MM/YY)</label>
-                  <input required type="text" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} className="w-full bg-background border border-gray-800 rounded-xl px-4 py-2.5 text-white focus:border-accent outline-none" />
-                </div>
-              </div>
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Part No.</label>
-                <input required type="text" value={formData.partNo} onChange={e => setFormData({...formData, partNo: e.target.value})} className="w-full bg-background border border-gray-800 rounded-xl px-4 py-2.5 text-white focus:border-accent outline-none" />
+                <label className="block text-sm font-medium text-gray-400 mb-1">Card Number</label>
+                <input required type="text" value={formData.cardNumber} onChange={e => setFormData({...formData, cardNumber: e.target.value})} className="w-full bg-background border border-gray-800 rounded-xl px-4 py-2.5 text-white focus:border-accent outline-none" />
               </div>
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-400">Dates (DD/MM/YY)</label>
+                {selectedDates.map((date, idx) => (
+                  <div key={idx} className="flex gap-2 items-center">
+                    <input 
+                      required 
+                      type="date" 
+                      value={date} 
+                      onChange={e => {
+                        const newDates = [...selectedDates];
+                        newDates[idx] = e.target.value;
+                        setSelectedDates(newDates);
+                      }} 
+                      className="flex-1 bg-background border border-gray-800 rounded-xl px-4 py-2.5 text-white focus:border-accent outline-none" 
+                    />
+                    {selectedDates.length > 1 && (
+                      <button 
+                        type="button" 
+                        onClick={() => setSelectedDates(selectedDates.filter((_, i) => i !== idx))} 
+                        className="text-red-400 hover:text-red-300 p-2 hover:bg-gray-800 rounded-xl transition-colors"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button 
+                  type="button" 
+                  onClick={() => setSelectedDates([...selectedDates, format(new Date(), 'dd/MM/yy')])}
+                  className="text-accent hover:text-accent/80 text-sm font-semibold flex items-center gap-1 mt-1 transition-colors"
+                >
+                  <Plus className="w-4 h-4" /> Add Date
+                </button>
+              </div>
+
               
               <div className="pt-4 flex justify-end gap-3 border-t border-gray-800 mt-6">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 rounded-xl text-gray-400 hover:bg-gray-800 hover:text-white transition-colors font-medium">Cancel</button>
@@ -185,8 +230,20 @@ export default function CardDetails() {
                   <h2 className="text-2xl font-black uppercase underline decoration-2 underline-offset-4">Route Card</h2>
                 </div>
                 <div className="flex flex-col text-right font-bold text-sm">
-                  <span>P/N: <span className="font-mono text-lg">{viewingCard.partNo}</span></span>
-                  <span>Date: <span className="font-mono text-lg">{viewingCard.date}</span></span>
+                  <span>Date: <span className="font-mono text-lg">{(() => {
+                    const formatDateForDisplay = (dateStr) => {
+                      if (!dateStr) return '';
+                      return dateStr.split(',').map(d => {
+                        const trimmed = d.trim();
+                        if (trimmed.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                          const [y, m, day_val] = trimmed.split('-');
+                          return `${day_val}/${m}/${y.substring(2)}`;
+                        }
+                        return trimmed;
+                      }).join(', ');
+                    };
+                    return formatDateForDisplay(viewingCard.date);
+                  })()}</span></span>
                 </div>
               </div>
 
@@ -198,12 +255,53 @@ export default function CardDetails() {
                   </tr>
                 </thead>
                 <tbody>
-                  {[1, 2, 3, 4, 5, 6, 7].map((_, idx) => (
-                    <tr key={idx} className="h-7">
-                      <td className="border-2 border-black px-2">{idx === 0 ? 'P.D.C' : (idx === 1 ? 'Trimming' : '')}</td>
-                      <td className="border-2 border-black px-2">{idx === 0 ? 'Chethan' : ''}</td>
-                    </tr>
-                  ))}
+                  {(() => {
+                    const normalizeDate = (dateStr) => {
+                      if (!dateStr) return '';
+                      if (dateStr.includes('/')) {
+                        const parts = dateStr.split('/');
+                        if (parts.length === 3) {
+                          let day = parts[0].padStart(2, '0');
+                          let month = parts[1].padStart(2, '0');
+                          let year = parts[2];
+                          if (year.length === 2) year = `20${year}`;
+                          return `${year}-${month}-${day}`;
+                        }
+                      }
+                      return dateStr;
+                    };
+
+                    const cardDatesNormalized = (viewingCard.date || '')
+                      .split(',')
+                      .map(d => normalizeDate(d.trim()))
+                      .filter(Boolean);
+
+                    const matchingWorkLogs = masterData.filter(wl => {
+                      const wlDateNormalized = normalizeDate(wl.date);
+                      const dateMatches = cardDatesNormalized.length === 0 || cardDatesNormalized.includes(wlDateNormalized);
+                      return dateMatches && wl.product === viewingCard.productName;
+                    });
+
+                    const cardRows = matchingWorkLogs.map(wl => {
+                      const assocAssignment = assignments.find(a => (a._id || a.id)?.toString() === wl.assignment?.toString());
+                      return {
+                        process: assocAssignment?.process || 'Production',
+                        operator: wl.operator
+                      };
+                    });
+
+                    const rowsToRender = [...cardRows];
+                    while (rowsToRender.length < 7) {
+                      rowsToRender.push({ process: '', operator: '' });
+                    }
+
+                    return rowsToRender.map((row, idx) => (
+                      <tr key={idx} className="h-7">
+                        <td className="border-2 border-black px-2">{row.process}</td>
+                        <td className="border-2 border-black px-2">{row.operator}</td>
+                      </tr>
+                    ));
+                  })()}
                 </tbody>
               </table>
             </div>

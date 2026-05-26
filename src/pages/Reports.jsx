@@ -103,7 +103,7 @@ export default function Reports() {
       const prodObj = products.find(p => p.name === c.productName);
       return {
         cardNumber: c.cardNumber,
-        partNo: c.partNo,
+        productName: c.productName || 'General Product',
         date: c.date,
         processes: prodObj ? prodObj.processes.length : 1,
         totalProd,
@@ -155,8 +155,8 @@ export default function Reports() {
       head = [['Process Name', 'Total Production', 'Total Rejection', 'Efficiency %']];
       body = processReport.map(r => [r.name, r.prod, r.rej, `${r.efficiency}%`]);
     } else if (activeTab === 'card') {
-      head = [['Card Number', 'P/N', 'Date', 'Processes', 'Total Prod', 'Total Rej']];
-      body = cardReport.map(r => [r.cardNumber, r.partNo, r.date, r.processes, r.totalProd, r.totalRej]);
+      head = [['Card Number', 'Product', 'Date', 'Processes', 'Total Prod', 'Total Rej']];
+      body = cardReport.map(r => [r.cardNumber, r.productName, r.date, r.processes, r.totalProd, r.totalRej]);
     } else if (activeTab === 'bag') {
       head = [['Bag ID', 'Weight', 'Destination', 'Linked Card', 'Total Prod', 'Total Rej']];
       body = bagReport.map(r => [r.bagId, r.weight, r.destination, r.linkedCard, r.totalProd, r.totalRej]);
@@ -234,11 +234,11 @@ export default function Reports() {
         </tr>
       ));
     } else if (activeTab === 'card') {
-      headers = ['Card Number', 'P/N', 'Date', 'Processes', 'Total Prod', 'Total Rej'];
+      headers = ['Card Number', 'Product', 'Date', 'Processes', 'Total Prod', 'Total Rej'];
       rows = cardReport.map(r => (
         <tr key={r.cardNumber} className="border-b border-gray-800/50 hover:bg-gray-800/20">
           <td className="p-4 text-accent font-bold">{r.cardNumber}</td>
-          <td className="p-4 text-gray-300">{r.partNo}</td>
+          <td className="p-4 text-gray-300">{r.productName}</td>
           <td className="p-4 text-gray-400">{r.date}</td>
           <td className="p-4 text-white">{r.processes}</td>
           <td className="p-4 text-gray-300 font-mono">{r.totalProd}</td>

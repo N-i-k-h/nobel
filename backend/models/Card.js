@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const cardSchema = new mongoose.Schema(
   {
     cardNumber: { type: String, required: true, unique: true },
-    partNo: { type: String, required: true },
+    partNo: { type: String },
+    productName: { type: String },
     date: { type: String, required: true },
     processes: [
       {

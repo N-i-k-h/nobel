@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { Download, FileText, Filter, LayoutGrid, File, Settings } from 'lucide-react';
 import { jsPDF } from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 const SHIFT_A_TIMINGS = [
@@ -74,7 +74,7 @@ export default function MasterData() {
       ];
     });
 
-    doc.autoTable({
+    autoTable(doc, {
       startY: 80,
       head: [['Time Slot', 'Production Qty', 'Front Rej', 'Back Rej', 'Final Output', 'Remarks', 'Operator']],
       body: tableData,

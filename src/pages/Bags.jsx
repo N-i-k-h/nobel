@@ -5,9 +5,10 @@ import { format } from 'date-fns';
 import axios from 'axios';
 
 export default function Bags() {
-  const { bags, setBags, cards, user } = useAppContext();
+  const { bags, setBags, cards, user, assignments, masterData } = useAppContext();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [viewingBag, setViewingBag] = useState(null);
+  const [selectedCards, setSelectedCards] = useState([]);
 
   const [formData, setFormData] = useState({
     weight: '',
@@ -23,19 +24,87 @@ export default function Bags() {
       card: '',
       date: format(new Date(), 'yyyy-MM-dd')
     });
+    setSelectedCards([]);
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (selectedCards.length === 0) {
+      alert('Please select at least one route card.');
+      return;
+    }
     try {
       const config = { headers: { Authorization: `Bearer ${user?.token}` } };
-      const res = await axios.post('/api/bags', formData, config);
+      const body = {
+        ...formData,
+        card: selectedCards.join(', ')
+      };
+      const res = await axios.post('/api/bags', body, config);
       setBags([...bags, res.data]);
       setIsModalOpen(false);
     } catch (error) {
       alert(error.response?.data?.message || 'Error saving bag');
     }
+  };
+
+  const getTraceabilityData = (bag) => {
+    if (!bag) return [];
+    
+    const cardNums = (bag.card || '')
+      .split(',')
+      .map(c => c.trim())
+      .filter(Boolean);
+
+    const matchingCards = cards.filter(c => cardNums.includes(c.cardNumber));
+    
+    const normalizeDate = (dateStr) => {
+      if (!dateStr) return '';
+      if (dateStr.includes('/')) {
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+          let day = parts[0].padStart(2, '0');
+          let month = parts[1].padStart(2, '0');
+          let year = parts[2];
+          if (year.length === 2) year = `20${year}`;
+          return `${year}-${month}-${day}`;
+        }
+      }
+      return dateStr;
+    };
+
+    const matchedLogs = [];
+    matchingCards.forEach(card => {
+      const cardDatesNormalized = (card.date || '')
+        .split(',')
+        .map(d => normalizeDate(d.trim()))
+        .filter(Boolean);
+
+      const logs = masterData.filter(wl => {
+        const wlDateNormalized = normalizeDate(wl.date);
+        const matchProduct = wl.product === card.productName;
+        const matchDate = cardDatesNormalized.length === 0 || cardDatesNormalized.includes(wlDateNormalized);
+        return matchProduct && matchDate;
+      });
+      matchedLogs.push(...logs);
+    });
+
+    const group = {};
+    matchedLogs.forEach(wl => {
+      const assocAssignment = assignments?.find(a => (a._id || a.id)?.toString() === wl.assignment?.toString());
+      const processName = assocAssignment?.process || 'Production';
+      const key = `${processName}-${wl.operator}`;
+      if (!group[key]) {
+        group[key] = {
+          process: processName,
+          operator: wl.operator,
+          qty: 0
+        };
+      }
+      group[key].qty += Number(wl.finalOutput || 0);
+    });
+
+    return Object.values(group);
   };
 
   return (
@@ -100,11 +169,34 @@ export default function Bags() {
                 <input required type="text" value={formData.destination} onChange={e => setFormData({...formData, destination: e.target.value})} className="w-full bg-background border border-gray-800 rounded-xl px-4 py-2.5 text-white focus:border-accent outline-none" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-400 mb-1">Select Card Reference</label>
-                <select required value={formData.card} onChange={e => setFormData({...formData, card: e.target.value})} className="w-full bg-background border border-gray-800 rounded-xl px-4 py-2.5 text-white focus:border-accent outline-none appearance-none">
-                  <option value="">-- Select Card --</option>
-                  {cards.map(c => <option key={c.id} value={c.cardNumber}>{c.cardNumber} ({c.partNo})</option>)}
-                </select>
+                <label className="block text-sm font-medium text-gray-400 mb-2">Select Card References</label>
+                <div className="bg-background border border-gray-800 rounded-xl p-3 max-h-48 overflow-y-auto space-y-2">
+                  {cards.length === 0 ? (
+                    <p className="text-sm text-gray-500">No route cards available</p>
+                  ) : (
+                    cards.map(c => {
+                      const isChecked = selectedCards.includes(c.cardNumber);
+                      return (
+                        <label key={c.id || c._id} className="flex items-center gap-3 cursor-pointer text-gray-300 hover:text-white transition-colors">
+                          <input 
+                            type="checkbox" 
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setSelectedCards(selectedCards.filter(num => num !== c.cardNumber));
+                              } else {
+                                setSelectedCards([...selectedCards, c.cardNumber]);
+                              }
+                            }}
+                            className="w-4 h-4 rounded border-gray-800 text-accent focus:ring-accent bg-background"
+                          />
+                          <span className="text-sm font-semibold">{c.cardNumber}</span>
+                          <span className="text-xs text-gray-500">({c.productName || 'General Product'})</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-400 mb-1">Date</label>
@@ -167,21 +259,18 @@ export default function Bags() {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr className="border-b border-gray-800/50">
-                      <td className="p-4 text-white font-medium">Production</td>
-                      <td className="p-4 text-gray-300">Ravi</td>
-                      <td className="p-4 text-accent font-bold text-right">25</td>
-                    </tr>
-                    <tr className="border-b border-gray-800/50">
-                      <td className="p-4 text-white font-medium">Production</td>
-                      <td className="p-4 text-gray-300">Suresh</td>
-                      <td className="p-4 text-accent font-bold text-right">15</td>
-                    </tr>
-                    <tr>
-                      <td className="p-4 text-white font-medium">Filtering</td>
-                      <td className="p-4 text-gray-300">Gita</td>
-                      <td className="p-4 text-accent font-bold text-right">40</td>
-                    </tr>
+                    {getTraceabilityData(viewingBag).map((row, idx) => (
+                      <tr key={idx} className="border-b border-gray-800/50">
+                        <td className="p-4 text-white font-medium">{row.process}</td>
+                        <td className="p-4 text-gray-300">{row.operator}</td>
+                        <td className="p-4 text-accent font-bold text-right">{row.qty}</td>
+                      </tr>
+                    ))}
+                    {getTraceabilityData(viewingBag).length === 0 && (
+                      <tr>
+                        <td colSpan="3" className="p-4 text-center text-gray-500">No traceability records found for these cards.</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
