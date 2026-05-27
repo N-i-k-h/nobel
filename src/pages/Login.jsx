@@ -94,9 +94,8 @@ export default function Login() {
         </form>
 
         <div className="mt-8 text-center text-sm text-gray-500">
-          <p>Demo Credentials:</p>
-          <p className="mt-1">Admin: admin@nobel.com / admin123</p>
-          <p>Operator: Ensure admin creates one first.</p>
+          <p>NOBEL ALLOY Workflow System</p>
+          <p className="mt-1">Contact your administrator for access.</p>
         </div>
       </div>
     </div>
